@@ -32,6 +32,7 @@ app.post('/api/login', async (req, res) => {
 
   const { data, error } = await supabase.auth.signInWithPassword({ email, password });
   if (error) {
+    console.error('Login gagal:', error.message);
     return res.status(401).json({ pesan: 'Email atau password salah' });
   }
 
@@ -81,6 +82,7 @@ app.post('/api/mata-kuliah', wajibLogin, async (req, res) => {
 });
 
 app.use('/api/krs', require('./routes/krs'));
+app.use('/api/nilai', require('./routes/nilai'));
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
