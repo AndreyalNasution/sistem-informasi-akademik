@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Presensi - Sistem Informasi Akademik</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <div id="root"></div>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/layout.js"></script>
+  <script>
+    (async () => {
+      const profil = ambilProfil();
+      const konten = buatKerangka('Presensi');
+      if (!konten) return;
+
+      const info = el('div', 'error');
+      const panel = el('section', 'panel');
+      konten.append(panel, info);
+
+      const STATUS = ['hadir', 'izin', 'sakit', 'alpa'];
+      const hariIni = () => {
+        const d = new Date();
+        return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+      };
+
+      // Pilihan dosen disimpan di sini supaya tidak hilang saat tabel digambar ulang
+      let pilihMk = null;
+      let pilihPertemuan = 1;
+      let pilihTanggal = hariIni();
+      let pesanOk = '';
+
+      function tampilMahasiswa(krs, presensi) {
+        panel.append(el('h2', '', 'Rekap kehadiran'));
+        if (krs.length === 0) {
+          panel.append(el('p', '', 'KRS-mu masih kosong.'));
+          return;
+        }
+        const rekap = krs.map((k) => {
+          const p = presensi.filter((x) => x.krs.id === k.id);
+          const hitung = (s) => p.filter((x) => x.status === s).length;
+          const hadir = hitung('hadir');
+          const persen = p.length ? Math.round((hadir / p.length) * 100) + '%' : '-';
+          return [k.mata_kuliah.kode, k.mata_kuliah.nama, hadir, hitung('izin'), hitung('sakit'), hitung('alpa'), persen];
+        });
+        panel.append(buatTabel(['Kode', 'Mata kuliah', 'Hadir', 'Izin', 'Sakit', 'Alpa', '% Hadir'], rekap));
+
+        if (presensi.length > 0) {
+          panel.append(el('h2', '', 'Riwayat per pertemuan'));
+          const detail = presensi.map((p) => [
+            p.krs.mata_kuliah.kode, p.pertemuan_ke, p.tanggal, el('span', 'badge ' + p.status, p.status),
+          ]);
+          panel.append(buatTabel(['Kode', 'Pertemuan', 'Tanggal', 'Status'], detail));
+        }
+      }
+
+      function tampilDosen(krs, presensi) {
+        panel.append(el('h2', '', 'Catat presensi'));
+        if (krs.length === 0) {
+          panel.append(el('p', '', 'Belum ada mahasiswa yang mengambil mata kuliahmu.'));
+          return;
+        }
+
+        const daftarMk = new Map();
+        krs.forEach((k) => daftarMk.set(k.mata_kuliah.id, k.mata_kuliah));
+        if (!pilihMk || !daftarMk.has(pilihMk)) pilihMk = [...daftarMk.keys()][0];
+
+        const selMk = el('select');
+        daftarMk.forEach((m, id) => { const o = el('option', '', m.kode + ' - ' + m.nama); o.value = id; selMk.append(o); });
+        selMk.value = pilihMk;
+        selMk.addEventListener('change', () => { pilihMk = selMk.value; muat(); });
+
+        const selPert = el('select');
+        for (let i = 1; i <= 16; i++) { const o = el('option', '', 'Pertemuan ' + i); o.value = i; selPert.append(o); }
+        selPert.value = pilihPertemuan;
+        selPert.addEventListener('change', () => { pilihPertemuan = Number(selPert.value); muat(); });
+
+        const inTanggal = el('input');
+        inTanggal.type = 'date';
+        inTanggal.value = pilihTanggal;
+        inTanggal.addEventListener('change', () => { pilihTanggal = inTanggal.value; });
+
+        panel.append(el('label', '', 'Mata kuliah'), selMk, el('label', '', 'Pertemuan'), selPert,
+                     el('label', '', 'Tanggal (dipakai untuk presensi baru)'), inTanggal);
+
+        const siswa = krs.filter((k) => k.mata_kuliah.id === pilihMk);
+        const pilihan = [];
+        const baris = siswa.map((k) => {
+          const ada = presensi.find((p) => p.krs.id === k.id && p.pertemuan_ke === pilihPertemuan);
+          const sel = el('select');
+          STATUS.forEach((s) => { const o = el('option', '', s); o.value = s; sel.append(o); });
+          sel.value = ada ? ada.status : 'hadir';
+          pilihan.push({ k, sel, ada });
+          return [k.mahasiswa ? (k.mahasiswa.nim_nip || '-') : '-', k.mahasiswa ? k.mahasiswa.nama : '-', sel];
+        });
+
+        const tabel = buatTabel(['NIM', 'Nama', 'Status'], baris);
+        tabel.style.marginTop = '16px';
+        panel.append(tabel);
+
+        const btn = el('button', 'hijau', 'Simpan presensi');
+        btn.type = 'button';
+        btn.style.marginTop = '14px';
+        btn.addEventListener('click', async () => {
+          info.textContent = '';
+          btn.disabled = true;
+          try {
+            for (const { k, sel, ada } of pilihan) {
+              if (ada) {
+                if (ada.status !== sel.value) {
+                  await api('/api/presensi/' + ada.id, { method: 'PUT', body: JSON.stringify({ status: sel.value }) });
+                }
+              } else {
+                const body = { krs_id: k.id, pertemuan_ke: pilihPertemuan, status: sel.value };
+                if (pilihTanggal) body.tanggal = pilihTanggal;
+                await api('/api/presensi', { method: 'POST', body: JSON.stringify(body) });
+              }
+            }
+            pesanOk = 'Presensi pertemuan ' + pilihPertemuan + ' tersimpan.';
+            await muat();
+          } catch (err) {
+            info.textContent = err.message;
+            btn.disabled = false;
+          }
+        });
+        panel.append(btn);
+        if (pesanOk) {
+          const ok = el('span', '', pesanOk);
+          ok.style.marginLeft = '12px';
+          ok.style.color = '#0b7a5a';
+          panel.append(ok);
+          pesanOk = '';
+        }
+      }
+
+      async function muat() {
+        info.textContent = '';
+        try {
+          const [krs, presensi] = await Promise.all([api('/api/krs'), api('/api/presensi')]);
+          panel.replaceChildren();
+          if (profil.role === 'mahasiswa') tampilMahasiswa(krs, presensi);
+          else if (profil.role === 'dosen') tampilDosen(krs, presensi);
+          else panel.append(el('p', '', 'Presensi dikelola oleh dosen pengampu.'));
+        } catch (err) { info.textContent = err.message; }
+      }
+
+      await muat();
+    })();
+  </script>
+</body>
+</html>

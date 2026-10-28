@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#166534">
+  <title>Masuk - Sistem Informasi Akademik</title>
+  <link rel="stylesheet" href="/css/login.css">
+</head>
+<body>
+  <main class="login-shell">
+    <section class="brand-panel" aria-labelledby="brand-title">
+      <div class="brand-lockup" aria-label="Sistem Informasi Akademik">
+        <span class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 36 36" fill="none">
+            <path d="M5.5 10.25c4.85-.9 9.05.15 12.5 3.2v15.1c-3.45-3.05-7.65-4.1-12.5-3.2v-15.1Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+            <path d="M30.5 10.25c-4.85-.9-9.05.15-12.5 3.2v15.1c3.45-3.05 7.65-4.1 12.5-3.2v-15.1Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+            <path d="M18 13.4v15.1" stroke="currentColor" stroke-width="1.8"/>
+            <path d="m22 6 1.1 2.25 2.4.35-1.75 1.7.4 2.4L22 11.55l-2.15 1.15.4-2.4-1.75-1.7 2.4-.35L22 6Z" fill="currentColor"/>
+          </svg>
+        </span>
+        <span class="brand-name">Sistem Informasi Akademik</span>
+      </div>
+
+      <div class="brand-copy">
+        <p class="eyebrow"><span class="eyebrow-line"></span> Ruang untuk bertumbuh</p>
+        <h1 id="brand-title">Perjalanan akademik,<br><span>dalam satu tempat.</span></h1>
+        <p class="brand-description">Akses informasi studi dengan lebih teratur, agar Anda bisa memberi perhatian pada hal yang paling berarti: proses belajar.</p>
+      </div>
+
+      <div class="artwork-frame" aria-hidden="true">
+        <div class="artwork-illustration">
+          <span class="illustration-sun"></span>
+          <span class="illustration-hill illustration-hill-back"></span>
+          <span class="illustration-hill illustration-hill-front"></span>
+          <span class="illustration-book"></span>
+          <span class="illustration-stem"></span>
+          <span class="illustration-leaf leaf-one"></span>
+          <span class="illustration-leaf leaf-two"></span>
+        </div>
+        <div class="artwork-glow"></div>
+        <div class="artwork-caption"><span class="caption-rule"></span><span>Belajar dengan arah. Berkembang dengan makna.</span></div>
+      </div>
+
+      <div class="brand-footer">
+        <span class="status-dot" aria-hidden="true"></span>
+        <span>Portal akademik</span>
+        <span class="footer-separator" aria-hidden="true">·</span>
+        <span>SMK 2 Telkom Medan</span>
+      </div>
+    </section>
+
+    <section class="form-panel" aria-labelledby="form-title">
+      <div class="form-topline">
+        <span class="secure-indicator">
+          <svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M10 2.5 4 5v4.15c0 4.05 2.55 6.75 6 8.35 3.45-1.6 6-4.3 6-8.35V5l-6-2.5Z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/><path d="m7.5 9.9 1.65 1.65 3.5-3.6" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          Akses akademik
+        </span>
+        <span class="topline-note">Sistem Informasi Akademik</span>
+      </div>
+
+      <div class="form-content">
+        <div class="mobile-brand">
+          <span class="brand-mark brand-mark-small" aria-hidden="true">
+            <svg viewBox="0 0 36 36" fill="none"><path d="M5.5 10.25c4.85-.9 9.05.15 12.5 3.2v15.1c-3.45-3.05-7.65-4.1-12.5-3.2v-15.1Z" stroke="currentColor" stroke-width="1.8"/><path d="M30.5 10.25c-4.85-.9-9.05.15-12.5 3.2v15.1c3.45-3.05 7.65-4.1 12.5-3.2v-15.1Z" stroke="currentColor" stroke-width="1.8"/><path d="M18 13.4v15.1" stroke="currentColor" stroke-width="1.8"/></svg>
+          </span>
+          <span class="brand-name">Sistem Informasi Akademik</span>
+        </div>
+
+        <div class="form-heading">
+          <p class="eyebrow form-eyebrow">PORTAL AKADEMIK</p>
+          <h2 id="form-title">Masuk ke akun Anda</h2>
+          <p class="form-intro">Gunakan email dan kata sandi untuk melanjutkan.</p>
+        </div>
+
+        <form id="form-login" class="login-form" novalidate>
+          <div class="field-group">
+            <label for="email">Email</label>
+            <div class="input-wrap">
+              <span class="input-icon" aria-hidden="true"><svg viewBox="0 0 20 20" fill="none"><circle cx="10" cy="6.25" r="3" stroke="currentColor" stroke-width="1.5"/><path d="M4.5 16.25c.45-2.55 2.55-4.25 5.5-4.25s5.05 1.7 5.5 4.25" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></span>
+              <input id="email" name="email" type="email" placeholder="Masukkan email" autocomplete="username" aria-describedby="email-error" required>
+            </div>
+            <p class="field-error" id="email-error" aria-live="polite"></p>
+          </div>
+
+          <div class="field-group">
+            <label for="password">Kata sandi</label>
+            <div class="input-wrap password-wrap">
+              <span class="input-icon" aria-hidden="true"><svg viewBox="0 0 20 20" fill="none"><rect x="4" y="8.5" width="12" height="8.5" rx="1.8" stroke="currentColor" stroke-width="1.5"/><path d="M6.5 8.5V6a3.5 3.5 0 1 1 7 0v2.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></span>
+              <input id="password" name="password" type="password" placeholder="Masukkan kata sandi" autocomplete="current-password" aria-describedby="password-error" required>
+              <button class="password-toggle" id="btn-mata" type="button" aria-label="Tampilkan kata sandi" aria-pressed="false"><svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M2.5 10s2.7-4.25 7.5-4.25 7.5 4.25 7.5 4.25-2.7 4.25-7.5 4.25S2.5 10 2.5 10Z" stroke="currentColor" stroke-width="1.5"/><circle cx="10" cy="10" r="2" stroke="currentColor" stroke-width="1.5"/></svg></button>
+            </div>
+            <p class="field-error" id="password-error" aria-live="polite"></p>
+          </div>
+
+          <label class="remember-option" for="remember"><input id="remember" type="checkbox"><span class="custom-checkbox" aria-hidden="true">✓</span><span>Ingat saya</span></label>
+          <div id="pesan" class="form-feedback" role="alert" hidden></div>
+          <button class="button-primary" id="btn-masuk" type="submit"><span class="button-label">Masuk</span><svg class="button-arrow" viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M4 10h11m-4-4 4 4-4 4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="button-spinner" aria-hidden="true"></span></button>
+        </form>
+
+        <p class="privacy-note">Akun Anda dilindungi dan hanya digunakan untuk kebutuhan akademik.</p>
+      </div>
+
+      <footer class="form-footer"><span>&copy; <span id="current-year"></span> Sistem Informasi Akademik</span><span>SMK 2 Telkom Medan</span></footer>
+    </section>
+  </main>
+  <script src="/js/api.js"></script>
+  <script>
+    const form = document.getElementById('form-login');
+    const email = document.getElementById('email');
+    const password = document.getElementById('password');
+    const feedback = document.getElementById('pesan');
+    const submit = document.getElementById('btn-masuk');
+
+    function setError(input, message) {
+      input.setAttribute('aria-invalid', message ? 'true' : 'false');
+      document.getElementById(input.id + '-error').textContent = message;
+    }
+
+    function validate(input, message) {
+      const invalid = !input.value.trim();
+      setError(input, invalid ? message : '');
+      return !invalid;
+    }
+
+    [email, password].forEach((input) => input.addEventListener('input', () => {
+      if (input.getAttribute('aria-invalid') === 'true') validate(input, input === email ? 'Masukkan email Anda.' : 'Masukkan kata sandi Anda.');
+      feedback.hidden = true;
+    }));
+
+    document.getElementById('btn-mata').addEventListener('click', () => {
+      const visible = password.type === 'text';
+      password.type = visible ? 'password' : 'text';
+      document.getElementById('btn-mata').setAttribute('aria-pressed', String(!visible));
+      document.getElementById('btn-mata').setAttribute('aria-label', visible ? 'Tampilkan kata sandi' : 'Sembunyikan kata sandi');
+      password.focus();
+    });
+
+    form.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      feedback.hidden = true;
+      const validEmail = validate(email, 'Masukkan email Anda.');
+      const validPassword = validate(password, 'Masukkan kata sandi Anda.');
+      if (!validEmail || !validPassword) return;
+      submit.disabled = true;
+      submit.classList.add('is-loading');
+      try {
+        const hasil = await api('/api/login', { method: 'POST', body: JSON.stringify({ email: email.value.trim(), password: password.value }) });
+        simpanSesi(hasil.token, hasil.profile);
+        location.href = '/dashboard.html';
+      } catch (err) {
+        feedback.textContent = err.message;
+        feedback.hidden = false;
+        submit.disabled = false;
+        submit.classList.remove('is-loading');
+      }
+    });
+
+    [email, password].forEach((input) => input.setAttribute('aria-invalid', 'false'));
+    document.getElementById('current-year').textContent = String(new Date().getFullYear());
+  </script>
+</body>
+</html>

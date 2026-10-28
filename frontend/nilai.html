@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Nilai - Sistem Informasi Akademik</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <div id="root"></div>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/layout.js"></script>
+  <script>
+    (async () => {
+      const profil = ambilProfil();
+      const konten = buatKerangka('Nilai');
+      if (!konten) return;
+
+      const info = el('div', 'error');
+      const panel = el('section', 'panel');
+      konten.append(panel, info);
+
+      // Bobot huruf untuk IP (skala umum, sesuaikan kalau kampus punya skala lain)
+      const BOBOT = { A: 4, B: 3, C: 2, D: 1, E: 0 };
+
+      function tampilMahasiswa(krs, nilaiPerKrs) {
+        panel.append(el('h2', '', 'Nilai saya'));
+        if (krs.length === 0) {
+          panel.append(el('p', '', 'KRS-mu masih kosong.'));
+          return;
+        }
+        let sksBernilai = 0;
+        let poin = 0;
+        const baris = krs.map((k) => {
+          const n = nilaiPerKrs.get(k.id);
+          if (n) {
+            sksBernilai += k.mata_kuliah.sks;
+            poin += BOBOT[n.nilai_huruf] * k.mata_kuliah.sks;
+          }
+          return [k.mata_kuliah.kode, k.mata_kuliah.nama, k.mata_kuliah.sks, k.semester,
+                  n ? n.nilai_angka : '-', n ? n.nilai_huruf : 'Belum ada'];
+        });
+        panel.append(buatTabel(['Kode', 'Nama', 'SKS', 'Semester', 'Angka', 'Huruf'], baris));
+        if (sksBernilai > 0) {
+          panel.append(el('p', '', 'IP (skala 4,0): ' + (poin / sksBernilai).toFixed(2) +
+            ' dari ' + sksBernilai + ' SKS yang sudah bernilai'));
+        }
+      }
+
+      function tampilDosen(krs, nilaiPerKrs) {
+        const bisaInput = profil.role === 'dosen';
+        panel.append(el('h2', '', bisaInput ? 'Input nilai mahasiswa' : 'Daftar nilai'));
+        if (krs.length === 0) {
+          panel.append(el('p', '', 'Belum ada mahasiswa yang mengambil mata kuliah.'));
+          return;
+        }
+
+        const baris = krs.map((k) => {
+          const n = nilaiPerKrs.get(k.id);
+          const nim = k.mahasiswa ? (k.mahasiswa.nim_nip || '-') : '-';
+          const nama = k.mahasiswa ? k.mahasiswa.nama : '-';
+          const mk = k.mata_kuliah.kode + ' - ' + k.mata_kuliah.nama;
+          const huruf = n ? n.nilai_huruf : '-';
+
+          if (!bisaInput) return [nim, nama, mk, k.semester, n ? n.nilai_angka : '-', huruf];
+
+          const input = el('input');
+          input.type = 'number';
+          input.min = 0;
+          input.max = 100;
+          input.step = '0.01';
+          input.style.width = '100px';
+          if (n) input.value = n.nilai_angka;
+
+          const btn = el('button', 'hijau kecil', 'Simpan');
+          btn.type = 'button';
+          btn.addEventListener('click', async () => {
+            info.textContent = '';
+            if (input.value === '') { info.textContent = 'Isi nilai dulu (0-100)'; return; }
+            try {
+              const angka = Number(input.value);
+              if (n) {
+                await api('/api/nilai/' + n.id, { method: 'PUT', body: JSON.stringify({ nilai_angka: angka }) });
+              } else {
+                await api('/api/nilai', { method: 'POST', body: JSON.stringify({ krs_id: k.id, nilai_angka: angka }) });
+              }
+              await muat();
+            } catch (err) { info.textContent = err.message; }
+          });
+
+          const aksi = el('div');
+          aksi.style.display = 'flex';
+          aksi.style.gap = '8px';
+          aksi.append(input, btn);
+          return [nim, nama, mk, k.semester, aksi, huruf];
+        });
+
+        panel.append(buatTabel(['NIM', 'Nama', 'Mata kuliah', 'Semester', 'Nilai (0-100)', 'Huruf'], baris));
+      }
+
+      async function muat() {
+        info.textContent = '';
+        try {
+          const [krs, nilai] = await Promise.all([api('/api/krs'), api('/api/nilai')]);
+          const nilaiPerKrs = new Map(nilai.map((n) => [n.krs.id, n]));
+          panel.replaceChildren();
+          if (profil.role === 'mahasiswa') tampilMahasiswa(krs, nilaiPerKrs);
+          else tampilDosen(krs, nilaiPerKrs);
+        } catch (err) { info.textContent = err.message; }
+      }
+
+      await muat();
+    })();
+  </script>
+</body>
+</html>

@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard - Sistem Informasi Akademik</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <div id="root"></div>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/layout.js"></script>
+  <script>
+    (async () => {
+      const konten = buatKerangka('Dashboard');
+      if (!konten) return;
+      const profil = ambilProfil();
+      const warna = ['peach', 'lavender', 'rose', 'mint'];
+
+      const sapa = el('section', 'panel');
+      sapa.append(el('h2', '', 'Selamat datang, ' + profil.nama));
+      const ringkasan = el('p', '', 'Memuat data...');
+      sapa.append(ringkasan);
+
+      const panelMk = el('section', 'panel');
+      panelMk.append(el('h2', '', profil.role === 'mahasiswa' ? 'Mata kuliah yang kamu ambil' : 'Daftar mata kuliah'));
+      const grid = el('div', 'grid');
+      panelMk.append(grid);
+
+      konten.append(sapa, panelMk);
+
+      try {
+        let daftar;
+        if (profil.role === 'mahasiswa') {
+          const krs = await api('/api/krs');
+          daftar = krs.map((k) => k.mata_kuliah);
+        } else {
+          daftar = await api('/api/mata-kuliah');
+        }
+
+        const totalSks = daftar.reduce((jumlah, mk) => jumlah + mk.sks, 0);
+        ringkasan.textContent = daftar.length + ' mata kuliah, total ' + totalSks + ' SKS.';
+
+        if (daftar.length === 0) {
+          grid.append(el('p', '', profil.role === 'mahasiswa'
+            ? 'KRS-mu masih kosong. Pilih mata kuliah lewat menu Mata Kuliah & KRS.'
+            : 'Belum ada mata kuliah.'));
+        }
+
+        daftar.forEach((mk, i) => {
+          const kartu = el('div', 'kartu-mk ' + warna[i % warna.length]);
+          kartu.append(el('span', 'kode', mk.kode), el('h3', '', mk.nama), el('p', '', mk.sks + ' SKS'));
+          grid.append(kartu);
+        });
+      } catch (err) {
+        ringkasan.replaceWith(el('div', 'alert', err.message));
+      }
+    })();
+  </script>
+</body>
+</html>

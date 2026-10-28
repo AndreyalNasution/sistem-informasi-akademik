@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mata Kuliah - Sistem Informasi Akademik</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <div id="root"></div>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/layout.js"></script>
+  <script>
+    (async () => {
+      const profil = ambilProfil();
+      const konten = buatKerangka(profil && profil.role === 'mahasiswa' ? 'Mata Kuliah & KRS' : 'Mata Kuliah');
+      if (!konten) return;
+
+      const info = el('div', 'error');
+      const panelMk = el('section', 'panel');
+      const panelKrs = el('section', 'panel');
+      let inputSemester = null;
+
+      // ---------- Form tambah (khusus admin) ----------
+      if (profil.role === 'admin') {
+        const panelTambah = el('section', 'panel');
+        panelTambah.append(el('h2', '', 'Tambah mata kuliah'));
+        const form = el('form');
+
+        const fKode = el('input'); fKode.placeholder = 'Kode, contoh TIK102'; fKode.required = true;
+        const fNama = el('input'); fNama.placeholder = 'Nama mata kuliah'; fNama.required = true;
+        const fSks = el('select');
+        [1, 2, 3, 4, 5, 6].forEach((n) => { const o = el('option', '', n + ' SKS'); o.value = n; fSks.append(o); });
+        fSks.value = 3;
+        const fDosen = el('select');
+        const kosong = el('option', '', 'Pilih dosen pengampu'); kosong.value = ''; fDosen.append(kosong);
+
+        try {
+          const dosen = await api('/api/dosen');
+          dosen.forEach((d) => { const o = el('option', '', d.nama); o.value = d.id; fDosen.append(o); });
+        } catch (err) { info.textContent = err.message; }
+
+        const btn = el('button', 'hijau', 'Simpan');
+        btn.type = 'submit';
+        [['Kode', fKode], ['Nama', fNama], ['SKS', fSks], ['Dosen pengampu', fDosen]].forEach(([label, input]) => {
+          form.append(el('label', '', label), input);
+        });
+        const barisBtn = el('div'); barisBtn.style.marginTop = '14px'; barisBtn.append(btn);
+        form.append(barisBtn);
+
+        form.addEventListener('submit', async (e) => {
+          e.preventDefault();
+          info.textContent = '';
+          try {
+            await api('/api/mata-kuliah', {
+              method: 'POST',
+              body: JSON.stringify({
+                kode: fKode.value.trim(),
+                nama: fNama.value.trim(),
+                sks: Number(fSks.value),
+                dosen_id: fDosen.value || null,
+              }),
+            });
+            form.reset();
+            fSks.value = 3;
+            await muat();
+          } catch (err) { info.textContent = err.message; }
+        });
+
+        panelTambah.append(form);
+        konten.append(panelTambah);
+      }
+
+      // ---------- Isi semester (khusus mahasiswa) ----------
+      if (profil.role === 'mahasiswa') {
+        inputSemester = el('input');
+        inputSemester.value = '2026/2027 Ganjil';
+        panelMk.append(el('label', '', 'Semester untuk KRS'), inputSemester);
+      }
+
+      konten.append(panelMk);
+      if (profil.role === 'mahasiswa') konten.append(panelKrs);
+      konten.append(info);
+
+      // ---------- Muat data dan gambar tabel ----------
+      async function muat() {
+        info.textContent = '';
+        try {
+          const [mk, dosen] = await Promise.all([api('/api/mata-kuliah'), api('/api/dosen')]);
+          const namaDosen = new Map(dosen.map((d) => [d.id, d.nama]));
+          const krs = profil.role === 'mahasiswa' ? await api('/api/krs') : [];
+          const sudahDiambil = new Set(krs.map((k) => k.mata_kuliah.id));
+
+          panelMk.querySelectorAll('h2, .tabel-bungkus, p.kosong').forEach((x) => x.remove());
+          panelMk.prepend(el('h2', '', 'Daftar mata kuliah'));
+
+          const kepala = ['Kode', 'Nama', 'SKS', 'Dosen'];
+          if (profil.role === 'mahasiswa') kepala.push('Aksi');
+
+          const baris = mk.map((m) => {
+            const isi = [m.kode, m.nama, m.sks, namaDosen.get(m.dosen_id) || '-'];
+            if (profil.role === 'mahasiswa') {
+              if (sudahDiambil.has(m.id)) {
+                isi.push(el('span', 'badge hadir', 'Sudah diambil'));
+              } else {
+                const b = el('button', 'hijau kecil', 'Ambil');
+                b.type = 'button';
+                b.addEventListener('click', async () => {
+                  info.textContent = '';
+                  try {
+                    await api('/api/krs', {
+                      method: 'POST',
+                      body: JSON.stringify({ mata_kuliah_id: m.id, semester: inputSemester.value.trim() }),
+                    });
+                    await muat();
+                  } catch (err) { info.textContent = err.message; }
+                });
+                isi.push(b);
+              }
+            }
+            return isi;
+          });
+
+          if (mk.length === 0) panelMk.append(el('p', 'kosong', 'Belum ada mata kuliah.'));
+          else panelMk.append(buatTabel(kepala, baris));
+
+          if (profil.role === 'mahasiswa') {
+            panelKrs.replaceChildren(el('h2', '', 'KRS-ku'));
+            if (krs.length === 0) {
+              panelKrs.append(el('p', '', 'KRS-mu masih kosong. Klik Ambil pada mata kuliah di atas.'));
+            } else {
+              const barisKrs = krs.map((k) => {
+                const b = el('button', 'merah kecil', 'Batalkan');
+                b.type = 'button';
+                b.addEventListener('click', async () => {
+                  info.textContent = '';
+                  try { await api('/api/krs/' + k.id, { method: 'DELETE' }); await muat(); }
+                  catch (err) { info.textContent = err.message; }
+                });
+                return [k.mata_kuliah.kode, k.mata_kuliah.nama, k.mata_kuliah.sks, k.semester, b];
+              });
+              panelKrs.append(buatTabel(['Kode', 'Nama', 'SKS', 'Semester', 'Aksi'], barisKrs));
+              const total = krs.reduce((j, k) => j + k.mata_kuliah.sks, 0);
+              panelKrs.append(el('p', '', 'Total ' + total + ' SKS'));
+            }
+          }
+        } catch (err) {
+          info.textContent = err.message;
+        }
+      }
+
+      await muat();
+    })();
+  </script>
+</body>
+</html>
