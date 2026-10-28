@@ -3,6 +3,8 @@ const express = require('express');
 const cors = require('cors');
 const supabase = require('./supabase');
 const { supabaseUntukToken } = require('./supabase');
+const { wajibLogin } = require('./middleware/auth');
+
 const app = express();
 app.use(cors());
 app.use(express.json());
@@ -20,11 +22,6 @@ app.get('/api/tes-supabase', async (req, res) => {
     return res.status(500).json({ terhubung: false, pesan: error.message });
   }
   res.json({ terhubung: true, jumlah_terbaca: data.length });
-});
-
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`Server jalan di http://localhost:${PORT}`);
 });
 
 app.post('/api/login', async (req, res) => {
@@ -51,4 +48,39 @@ app.post('/api/login', async (req, res) => {
   }
 
   res.json({ token, profile });
+});
+
+app.get('/api/mata-kuliah', wajibLogin, async (req, res) => {
+  const { data, error } = await req.db
+    .from('mata_kuliah')
+    .select('id, kode, nama, sks, dosen_id')
+    .order('kode');
+  if (error) return res.status(500).json({ pesan: error.message });
+  res.json(data);
+});
+
+app.post('/api/mata-kuliah', wajibLogin, async (req, res) => {
+  const { kode, nama, sks, dosen_id } = req.body;
+  if (!kode || !nama || !sks) {
+    return res.status(400).json({ pesan: 'kode, nama, dan sks wajib diisi' });
+  }
+
+  const { data, error } = await req.db
+    .from('mata_kuliah')
+    .insert({ kode, nama, sks, dosen_id: dosen_id || null })
+    .select()
+    .single();
+
+  if (error) {
+    if (error.code === '42501') {
+      return res.status(403).json({ pesan: 'Hanya admin yang boleh menambah mata kuliah' });
+    }
+    return res.status(400).json({ pesan: error.message });
+  }
+  res.status(201).json(data);
+});
+
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+  console.log(`Server jalan di http://localhost:${PORT}`);
 });
