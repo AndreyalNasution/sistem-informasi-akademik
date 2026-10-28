@@ -82,6 +82,16 @@ app.post('/api/mata-kuliah', wajibLogin, async (req, res) => {
   res.status(201).json(data);
 });
 
+app.get('/api/dosen', wajibLogin, async (req, res) => {
+  const { data, error } = await req.db
+    .from('profiles')
+    .select('id, nama, nim_nip')
+    .eq('role', 'dosen')
+    .order('nama');
+  if (error) return res.status(500).json({ pesan: error.message });
+  res.json(data);
+});
+
 app.use('/api/krs', require('./routes/krs'));
 app.use('/api/nilai', require('./routes/nilai'));
 app.use('/api/presensi', require('./routes/presensi'));
