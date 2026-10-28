@@ -83,7 +83,7 @@ app.post('/api/mata-kuliah', wajibLogin, async (req, res) => {
 
 app.use('/api/krs', require('./routes/krs'));
 app.use('/api/nilai', require('./routes/nilai'));
-
+app.use('/api/presensi', require('./routes/presensi'));
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`Server jalan di http://localhost:${PORT}`);
