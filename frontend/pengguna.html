@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pengguna - Sistem Informasi Akademik</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <div id="root"></div>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/layout.js"></script>
+  <script>
+    (async () => {
+      const profil = ambilProfil();
+      const konten = buatKerangka('Pengguna');
+      if (!konten) return;
+
+      // Pengaman tampilan saja. Yang benar-benar menjaga data adalah backend dan RLS.
+      if (profil.role !== 'admin') {
+        konten.append(el('div', 'alert', 'Halaman ini khusus admin.'));
+        return;
+      }
+
+      const info = el('div', 'error');
+      const ok = el('div');
+      ok.style.color = '#0b7a5a';
+      ok.style.fontSize = '14px';
+      ok.style.marginTop = '12px';
+
+      // ---------- Form tambah akun ----------
+      const panelForm = el('section', 'panel');
+      panelForm.append(el('h2', '', 'Tambah akun'));
+      const form = el('form');
+
+      const fNama = el('input'); fNama.placeholder = 'Nama lengkap'; fNama.required = true;
+      const fEmail = el('input'); fEmail.type = 'email'; fEmail.placeholder = 'Email'; fEmail.required = true;
+      const fPassword = el('input'); fPassword.type = 'password'; fPassword.placeholder = 'Password (minimal 8 karakter)';
+      fPassword.required = true; fPassword.minLength = 8; fPassword.autocomplete = 'new-password';
+      const fRole = el('select');
+      [['mahasiswa', 'Mahasiswa'], ['dosen', 'Dosen']].forEach(([v, t]) => {
+        const o = el('option', '', t); o.value = v; fRole.append(o);
+      });
+      const fNim = el('input'); fNim.placeholder = 'NIM (mahasiswa) atau NIP (dosen)'; fNim.required = true;
+
+      [['Nama', fNama], ['Email', fEmail], ['Password', fPassword], ['Peran', fRole], ['NIM / NIP', fNim]]
+        .forEach(([label, input]) => form.append(el('label', '', label), input));
+
+      const btn = el('button', 'hijau', 'Buat akun');
+      btn.type = 'submit';
+      const barisBtn = el('div');
+      barisBtn.style.marginTop = '14px';
+      barisBtn.append(btn);
+      form.append(barisBtn, ok);
+
+      form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        info.textContent = '';
+        ok.textContent = '';
+        btn.disabled = true;
+        try {
+          const baru = await api('/api/pengguna', {
+            method: 'POST',
+            body: JSON.stringify({
+              nama: fNama.value.trim(),
+              email: fEmail.value.trim(),
+              password: fPassword.value,
+              role: fRole.value,
+              nim_nip: fNim.value.trim(),
+            }),
+          });
+          form.reset();
+          ok.textContent = 'Akun ' + baru.nama + ' (' + baru.role + ') berhasil dibuat.';
+          await muat();
+        } catch (err) {
+          info.textContent = err.message;
+        } finally {
+          btn.disabled = false;
+        }
+      });
+      panelForm.append(form);
+
+      // ---------- Daftar pengguna ----------
+      const panelDaftar = el('section', 'panel');
+
+      konten.append(panelForm, panelDaftar, info);
+
+      async function muat() {
+        try {
+          const daftar = await api('/api/pengguna');
+          panelDaftar.replaceChildren(el('h2', '', 'Daftar pengguna (' + daftar.length + ')'));
+          const baris = daftar.map((p) => [p.nama, el('span', 'lencana', p.role), p.nim_nip || '-']);
+          panelDaftar.append(buatTabel(['Nama', 'Peran', 'NIM / NIP'], baris));
+        } catch (err) {
+          info.textContent = err.message;
+        }
+      }
+
+      await muat();
+    })();
+  </script>
+</body>
+</html>

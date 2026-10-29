@@ -96,6 +96,7 @@ app.use('/api/krs', require('./routes/krs'));
 app.use('/api/nilai', require('./routes/nilai'));
 app.use('/api/presensi', require('./routes/presensi'));
 const PORT = process.env.PORT || 3000;
+app.use('/api/pengguna', require('./routes/pengguna'));
 app.listen(PORT, () => {
   console.log(`Server jalan di http://localhost:${PORT}`);
 });

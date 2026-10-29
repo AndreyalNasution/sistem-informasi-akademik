@@ -9,6 +9,7 @@ const MENU = {
   admin: [
     ['Dashboard', '/dashboard.html'],
     ['Mata Kuliah', '/mata-kuliah.html'],
+    ['Pengguna', '/pengguna.html'],
   ],
   dosen: [
     ['Dashboard', '/dashboard.html'],
