@@ -13,46 +13,200 @@
   <script src="/js/layout.js"></script>
   <script>
     (async () => {
+      const profil = ambilProfil();
       const konten = buatKerangka('Dashboard');
       if (!konten) return;
-      const profil = ambilProfil();
-      const warna = ['peach', 'lavender', 'rose', 'mint'];
 
-      const sapa = el('section', 'panel');
-      sapa.append(el('h2', '', 'Selamat datang, ' + profil.nama));
-      const ringkasan = el('p', '', 'Memuat data...');
-      sapa.append(ringkasan);
+      // Skala dan batas ini asumsi umum, bukan dari PDF dosen. Sesuaikan kalau kampus berbeda.
+      const BOBOT = { A: 4, B: 3, C: 2, D: 1, E: 0 };
+      const BATAS_HADIR = 75; // persen kehadiran minimum
+      const WARNA = ['peach', 'lavender', 'rose', 'mint'];
 
-      const panelMk = el('section', 'panel');
-      panelMk.append(el('h2', '', profil.role === 'mahasiswa' ? 'Mata kuliah yang kamu ambil' : 'Daftar mata kuliah'));
-      const grid = el('div', 'grid');
-      panelMk.append(grid);
+      const angka = (n) => n.toFixed(2).replace('.', ',');
 
-      konten.append(sapa, panelMk);
+      function kartuStat(label, isi, kelas) {
+        const k = el('div', 'kartu-mk ' + kelas);
+        const besar = el('h3', '', String(isi));
+        besar.style.fontSize = '28px';
+        k.append(el('p', '', label), besar);
+        return k;
+      }
 
-      try {
-        let daftar;
-        if (profil.role === 'mahasiswa') {
-          const krs = await api('/api/krs');
-          daftar = krs.map((k) => k.mata_kuliah);
-        } else {
-          daftar = await api('/api/mata-kuliah');
-        }
+      function panelBaru(judul) {
+        const p = el('section', 'panel');
+        p.append(el('h2', '', judul));
+        return p;
+      }
 
-        const totalSks = daftar.reduce((jumlah, mk) => jumlah + mk.sks, 0);
-        ringkasan.textContent = daftar.length + ' mata kuliah, total ' + totalSks + ' SKS.';
-
-        if (daftar.length === 0) {
-          grid.append(el('p', '', profil.role === 'mahasiswa'
-            ? 'KRS-mu masih kosong. Pilih mata kuliah lewat menu Mata Kuliah & KRS.'
-            : 'Belum ada mata kuliah.'));
-        }
-
+      function kartuMataKuliah(daftar, kosongTeks) {
+        const grid = el('div', 'grid');
+        if (daftar.length === 0) grid.append(el('p', '', kosongTeks));
         daftar.forEach((mk, i) => {
-          const kartu = el('div', 'kartu-mk ' + warna[i % warna.length]);
+          const kartu = el('div', 'kartu-mk ' + WARNA[i % WARNA.length]);
           kartu.append(el('span', 'kode', mk.kode), el('h3', '', mk.nama), el('p', '', mk.sks + ' SKS'));
           grid.append(kartu);
         });
+        return grid;
+      }
+
+      const sapa = panelBaru('Selamat datang, ' + profil.nama);
+      const ringkasan = el('p', '', 'Memuat data...');
+      sapa.append(ringkasan);
+      konten.append(sapa);
+
+      try {
+        // ================= MAHASISWA =================
+        if (profil.role === 'mahasiswa') {
+          const [krs, nilai, presensi] = await Promise.all([
+            api('/api/krs'), api('/api/nilai'), api('/api/presensi'),
+          ]);
+          const nilaiPerKrs = new Map(nilai.map((n) => [n.krs.id, n]));
+
+          let sksAmbil = 0;
+          let sksBernilai = 0;
+          let poin = 0;
+          const perSemester = new Map();
+          krs.forEach((k) => {
+            const sks = k.mata_kuliah.sks;
+            sksAmbil += sks;
+            const n = nilaiPerKrs.get(k.id);
+            if (n) {
+              sksBernilai += sks;
+              poin += BOBOT[n.nilai_huruf] * sks;
+              const s = perSemester.get(k.semester) || { sks: 0, poin: 0 };
+              s.sks += sks;
+              s.poin += BOBOT[n.nilai_huruf] * sks;
+              perSemester.set(k.semester, s);
+            }
+          });
+
+          ringkasan.textContent = krs.length === 0
+            ? 'KRS-mu masih kosong. Pilih mata kuliah lewat menu Mata Kuliah & KRS.'
+            : 'Ringkasan akademikmu sampai saat ini.';
+
+          const grid = el('div', 'grid');
+          grid.append(
+            kartuStat('IPK', sksBernilai > 0 ? angka(poin / sksBernilai) : '-', 'mint'),
+            kartuStat('SKS diambil', sksAmbil, 'peach'),
+            kartuStat('SKS sudah bernilai', sksBernilai, 'lavender'),
+            kartuStat('Mata kuliah', krs.length, 'rose')
+          );
+          const panelStat = el('section', 'panel');
+          panelStat.append(grid);
+          konten.append(panelStat);
+
+          if (perSemester.size > 0) {
+            const p = panelBaru('IP per semester');
+            const baris = [...perSemester.entries()].map(([sem, s]) => [sem, s.sks, angka(s.poin / s.sks)]);
+            p.append(buatTabel(['Semester', 'SKS bernilai', 'IP'], baris));
+            konten.append(p);
+          }
+
+          if (krs.length > 0) {
+            const p = panelBaru('Kehadiran per mata kuliah');
+            const baris = krs.map((k) => {
+              const rekap = presensi.filter((x) => x.krs.id === k.id);
+              const hadir = rekap.filter((x) => x.status === 'hadir').length;
+              if (rekap.length === 0) {
+                return [k.mata_kuliah.kode, k.mata_kuliah.nama, 'Belum ada presensi', '-', '-'];
+              }
+              const persen = Math.round((hadir / rekap.length) * 100);
+              const status = persen >= BATAS_HADIR
+                ? el('span', 'badge hadir', 'Aman')
+                : el('span', 'badge alpa', 'Di bawah ' + BATAS_HADIR + '%');
+              return [k.mata_kuliah.kode, k.mata_kuliah.nama, hadir + ' dari ' + rekap.length + ' pertemuan', persen + '%', status];
+            });
+            p.append(buatTabel(['Kode', 'Mata kuliah', 'Hadir', '% Hadir', 'Status'], baris));
+            p.append(el('p', '', 'Batas kehadiran minimum: ' + BATAS_HADIR + '%.'));
+            konten.append(p);
+          }
+
+          const pMk = panelBaru('Mata kuliah yang kamu ambil');
+          pMk.append(kartuMataKuliah(krs.map((k) => k.mata_kuliah), 'Belum ada mata kuliah di KRS-mu.'));
+          konten.append(pMk);
+        }
+
+        // ================= DOSEN =================
+        else if (profil.role === 'dosen') {
+          const [krs, nilai, presensi] = await Promise.all([
+            api('/api/krs'), api('/api/nilai'), api('/api/presensi'),
+          ]);
+          const nilaiPerKrs = new Map(nilai.map((n) => [n.krs.id, n]));
+          const mkPerKrs = new Map(krs.map((k) => [k.id, k.mata_kuliah.id]));
+
+          const perMk = new Map();
+          krs.forEach((k) => {
+            const m = perMk.get(k.mata_kuliah.id) || {
+              kode: k.mata_kuliah.kode, nama: k.mata_kuliah.nama,
+              mahasiswa: 0, dinilai: 0, totalNilai: 0, hadir: 0, presensi: 0,
+            };
+            m.mahasiswa += 1;
+            const n = nilaiPerKrs.get(k.id);
+            if (n) { m.dinilai += 1; m.totalNilai += Number(n.nilai_angka); }
+            perMk.set(k.mata_kuliah.id, m);
+          });
+          presensi.forEach((p) => {
+            const m = perMk.get(mkPerKrs.get(p.krs.id));
+            if (!m) return;
+            m.presensi += 1;
+            if (p.status === 'hadir') m.hadir += 1;
+          });
+
+          const menunggu = krs.length - nilaiPerKrs.size;
+          ringkasan.textContent = perMk.size === 0
+            ? 'Belum ada mahasiswa yang mengambil mata kuliah yang kamu ampu.'
+            : 'Ringkasan mata kuliah yang kamu ampu.';
+
+          const grid = el('div', 'grid');
+          grid.append(
+            kartuStat('Mata kuliah diampu', perMk.size, 'mint'),
+            kartuStat('Total mahasiswa', krs.length, 'peach'),
+            kartuStat('Menunggu nilai', Math.max(menunggu, 0), 'rose')
+          );
+          const panelStat = el('section', 'panel');
+          panelStat.append(grid);
+          konten.append(panelStat);
+
+          if (perMk.size > 0) {
+            const p = panelBaru('Rekap per mata kuliah');
+            const baris = [...perMk.values()].map((m) => [
+              m.kode, m.nama, m.mahasiswa, m.dinilai + ' dari ' + m.mahasiswa,
+              m.dinilai > 0 ? angka(m.totalNilai / m.dinilai) : '-',
+              m.presensi > 0 ? Math.round((m.hadir / m.presensi) * 100) + '%' : '-',
+            ]);
+            p.append(buatTabel(['Kode', 'Mata kuliah', 'Mahasiswa', 'Sudah dinilai', 'Rata-rata nilai', 'Rata-rata hadir'], baris));
+            konten.append(p);
+          }
+        }
+
+        // ================= ADMIN =================
+        else {
+          const [mk, pengguna, krs] = await Promise.all([
+            api('/api/mata-kuliah'), api('/api/pengguna'), api('/api/krs'),
+          ]);
+          const jumlah = (peran) => pengguna.filter((p) => p.role === peran).length;
+          const tanpaDosen = mk.filter((m) => !m.dosen_id).length;
+
+          ringkasan.textContent = 'Ringkasan data sistem akademik.';
+          const grid = el('div', 'grid');
+          grid.append(
+            kartuStat('Mata kuliah', mk.length, 'mint'),
+            kartuStat('Dosen', jumlah('dosen'), 'peach'),
+            kartuStat('Mahasiswa', jumlah('mahasiswa'), 'lavender'),
+            kartuStat('KRS masuk', krs.length, 'rose')
+          );
+          const panelStat = el('section', 'panel');
+          panelStat.append(grid);
+          konten.append(panelStat);
+
+          if (tanpaDosen > 0) {
+            konten.append(el('div', 'alert', tanpaDosen + ' mata kuliah belum punya dosen pengampu. Atur lewat menu Mata Kuliah.'));
+          }
+
+          const pMk = panelBaru('Daftar mata kuliah');
+          pMk.append(kartuMataKuliah(mk, 'Belum ada mata kuliah.'));
+          konten.append(pMk);
+        }
       } catch (err) {
         ringkasan.replaceWith(el('div', 'alert', err.message));
       }
