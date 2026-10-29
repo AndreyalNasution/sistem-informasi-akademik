@@ -18,22 +18,62 @@
       if (!konten) return;
 
       const info = el('div', 'error');
+      const ok = el('div');
+      ok.style.color = '#0b7a5a';
+      ok.style.fontSize = '14px';
+      ok.style.marginTop = '12px';
+
       const panelMk = el('section', 'panel');
       const panelKrs = el('section', 'panel');
       let inputSemester = null;
+      let editId = null; // null = mode tambah, berisi id = mode ubah
 
-      // ---------- Form tambah (khusus admin) ----------
+      // ---------- Form tambah / ubah (khusus admin) ----------
+      let panelTambah = null;
+      let judulForm = null;
+      let formMk = null;
+      let btnSimpan = null;
+      let btnBatal = null;
+      let fKode = null;
+      let fNama = null;
+      let fSks = null;
+      let fDosen = null;
+
+      function keModeTambah() {
+        editId = null;
+        formMk.reset();
+        fSks.value = 3;
+        judulForm.textContent = 'Tambah mata kuliah';
+        btnSimpan.textContent = 'Simpan';
+        btnBatal.style.display = 'none';
+      }
+
+      function keModeUbah(m) {
+        editId = m.id;
+        info.textContent = '';
+        ok.textContent = '';
+        fKode.value = m.kode;
+        fNama.value = m.nama;
+        fSks.value = m.sks;
+        fDosen.value = m.dosen_id || '';
+        judulForm.textContent = 'Ubah mata kuliah';
+        btnSimpan.textContent = 'Simpan perubahan';
+        btnBatal.style.display = '';
+        panelTambah.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+
       if (profil.role === 'admin') {
-        const panelTambah = el('section', 'panel');
-        panelTambah.append(el('h2', '', 'Tambah mata kuliah'));
-        const form = el('form');
+        panelTambah = el('section', 'panel');
+        judulForm = el('h2', '', 'Tambah mata kuliah');
+        panelTambah.append(judulForm);
+        formMk = el('form');
 
-        const fKode = el('input'); fKode.placeholder = 'Kode, contoh TIK102'; fKode.required = true;
-        const fNama = el('input'); fNama.placeholder = 'Nama mata kuliah'; fNama.required = true;
-        const fSks = el('select');
+        fKode = el('input'); fKode.placeholder = 'Kode, contoh TIK102'; fKode.required = true;
+        fNama = el('input'); fNama.placeholder = 'Nama mata kuliah'; fNama.required = true;
+        fSks = el('select');
         [1, 2, 3, 4, 5, 6].forEach((n) => { const o = el('option', '', n + ' SKS'); o.value = n; fSks.append(o); });
         fSks.value = 3;
-        const fDosen = el('select');
+        fDosen = el('select');
         const kosong = el('option', '', 'Pilih dosen pengampu'); kosong.value = ''; fDosen.append(kosong);
 
         try {
@@ -41,20 +81,31 @@
           dosen.forEach((d) => { const o = el('option', '', d.nama); o.value = d.id; fDosen.append(o); });
         } catch (err) { info.textContent = err.message; }
 
-        const btn = el('button', 'hijau', 'Simpan');
-        btn.type = 'submit';
-        [['Kode', fKode], ['Nama', fNama], ['SKS', fSks], ['Dosen pengampu', fDosen]].forEach(([label, input]) => {
-          form.append(el('label', '', label), input);
-        });
-        const barisBtn = el('div'); barisBtn.style.marginTop = '14px'; barisBtn.append(btn);
-        form.append(barisBtn);
+        btnSimpan = el('button', 'hijau', 'Simpan');
+        btnSimpan.type = 'submit';
+        btnBatal = el('button', 'abu', 'Batal');
+        btnBatal.type = 'button';
+        btnBatal.style.display = 'none';
+        btnBatal.addEventListener('click', () => { info.textContent = ''; keModeTambah(); });
 
-        form.addEventListener('submit', async (e) => {
+        [['Kode', fKode], ['Nama', fNama], ['SKS', fSks], ['Dosen pengampu', fDosen]].forEach(([label, input]) => {
+          formMk.append(el('label', '', label), input);
+        });
+        const barisBtn = el('div');
+        barisBtn.style.marginTop = '14px';
+        barisBtn.style.display = 'flex';
+        barisBtn.style.gap = '8px';
+        barisBtn.append(btnSimpan, btnBatal);
+        formMk.append(barisBtn, ok);
+
+        formMk.addEventListener('submit', async (e) => {
           e.preventDefault();
           info.textContent = '';
+          ok.textContent = '';
+          const mengubah = editId !== null;
           try {
-            await api('/api/mata-kuliah', {
-              method: 'POST',
+            await api(mengubah ? '/api/mata-kuliah/' + editId : '/api/mata-kuliah', {
+              method: mengubah ? 'PUT' : 'POST',
               body: JSON.stringify({
                 kode: fKode.value.trim(),
                 nama: fNama.value.trim(),
@@ -62,13 +113,13 @@
                 dosen_id: fDosen.value || null,
               }),
             });
-            form.reset();
-            fSks.value = 3;
+            keModeTambah();
+            ok.textContent = mengubah ? 'Mata kuliah berhasil diperbarui.' : 'Mata kuliah berhasil ditambahkan.';
             await muat();
           } catch (err) { info.textContent = err.message; }
         });
 
-        panelTambah.append(form);
+        panelTambah.append(formMk);
         konten.append(panelTambah);
       }
 
@@ -96,10 +147,36 @@
           panelMk.prepend(el('h2', '', 'Daftar mata kuliah'));
 
           const kepala = ['Kode', 'Nama', 'SKS', 'Dosen'];
-          if (profil.role === 'mahasiswa') kepala.push('Aksi');
+          if (profil.role === 'mahasiswa' || profil.role === 'admin') kepala.push('Aksi');
 
           const baris = mk.map((m) => {
             const isi = [m.kode, m.nama, m.sks, namaDosen.get(m.dosen_id) || '-'];
+
+            if (profil.role === 'admin') {
+              const btnUbah = el('button', 'hijau kecil', 'Ubah');
+              btnUbah.type = 'button';
+              btnUbah.addEventListener('click', () => keModeUbah(m));
+
+              const btnHapus = el('button', 'merah kecil', 'Hapus');
+              btnHapus.type = 'button';
+              btnHapus.addEventListener('click', async () => {
+                info.textContent = '';
+                ok.textContent = '';
+                if (!confirm('Hapus mata kuliah ' + m.kode + ' - ' + m.nama + '?')) return;
+                try {
+                  await api('/api/mata-kuliah/' + m.id, { method: 'DELETE' });
+                  if (editId === m.id) keModeTambah();
+                  await muat();
+                } catch (err) { info.textContent = err.message; }
+              });
+
+              const aksi = el('div');
+              aksi.style.display = 'flex';
+              aksi.style.gap = '8px';
+              aksi.append(btnUbah, btnHapus);
+              isi.push(aksi);
+            }
+
             if (profil.role === 'mahasiswa') {
               if (sudahDiambil.has(m.id)) {
                 isi.push(el('span', 'badge hadir', 'Sudah diambil'));

@@ -1,10 +1,11 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
+const path = require('path');
 const supabase = require('./supabase');
 const { supabaseUntukToken } = require('./supabase');
 const { wajibLogin } = require('./middleware/auth');
-const path = require('path');
+
 const app = express();
 app.use(cors());
 app.use(express.json());
@@ -52,36 +53,6 @@ app.post('/api/login', async (req, res) => {
   res.json({ token, profile });
 });
 
-app.get('/api/mata-kuliah', wajibLogin, async (req, res) => {
-  const { data, error } = await req.db
-    .from('mata_kuliah')
-    .select('id, kode, nama, sks, dosen_id')
-    .order('kode');
-  if (error) return res.status(500).json({ pesan: error.message });
-  res.json(data);
-});
-
-app.post('/api/mata-kuliah', wajibLogin, async (req, res) => {
-  const { kode, nama, sks, dosen_id } = req.body;
-  if (!kode || !nama || !sks) {
-    return res.status(400).json({ pesan: 'kode, nama, dan sks wajib diisi' });
-  }
-
-  const { data, error } = await req.db
-    .from('mata_kuliah')
-    .insert({ kode, nama, sks, dosen_id: dosen_id || null })
-    .select()
-    .single();
-
-  if (error) {
-    if (error.code === '42501') {
-      return res.status(403).json({ pesan: 'Hanya admin yang boleh menambah mata kuliah' });
-    }
-    return res.status(400).json({ pesan: error.message });
-  }
-  res.status(201).json(data);
-});
-
 app.get('/api/dosen', wajibLogin, async (req, res) => {
   const { data, error } = await req.db
     .from('profiles')
@@ -92,11 +63,13 @@ app.get('/api/dosen', wajibLogin, async (req, res) => {
   res.json(data);
 });
 
+app.use('/api/mata-kuliah', require('./routes/mata-kuliah'));
 app.use('/api/krs', require('./routes/krs'));
 app.use('/api/nilai', require('./routes/nilai'));
 app.use('/api/presensi', require('./routes/presensi'));
-const PORT = process.env.PORT || 3000;
 app.use('/api/pengguna', require('./routes/pengguna'));
+
+const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`Server jalan di http://localhost:${PORT}`);
 });
